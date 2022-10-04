@@ -1,0 +1,3 @@
+## pingo
+
+ping in Go.
