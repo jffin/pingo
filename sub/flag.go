@@ -12,6 +12,8 @@ type Flag struct {
 	Help     bool
 	Interval string
 	Target   string
+	UseIPv4  bool
+	UseIPv6  bool
 	Version  bool
 }
 
@@ -20,10 +22,12 @@ var version = "0.1.0"
 var usage = fmt.Sprintf(`pingo v%s - ping in Go
 
 USAGE:
-	-c	ping <count> times
+	-c	ping <count> times (default: infinite)
 	-h	show usage
-	-i	interval per ping
+	-i	interval per ping (default: 1)
 	-v	show version
+	-4	use IPv4 (default: true)
+	-6	use IPv6 (default: false)
 
 EXAMPLES:
 	pingo example.com
@@ -35,6 +39,8 @@ func (f *Flag) Parse() error {
 	flag.IntVar(&f.Count, "c", 0, "ping <count> times")
 	flag.BoolVar(&f.Help, "h", false, "show usage")
 	flag.StringVar(&f.Interval, "i", "1", "interval (second) per ping")
+	flag.BoolVar(&f.UseIPv4, "4", true, "use IPv4")
+	flag.BoolVar(&f.UseIPv6, "6", false, "use IPv6")
 	flag.BoolVar(&f.Version, "v", false, "show version")
 	flag.Parse()
 
