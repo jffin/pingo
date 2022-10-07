@@ -2,46 +2,132 @@ package main
 
 import (
 	"fmt"
-	"net"
+	"log"
+	"os"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/hideckies/pingo/sub"
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
+)
+
+const (
+	PROTO_NUM_ICMP_IPv4 = 1
+	PROTO_NUM_ICMP_IPv6 = 58
 )
 
 type Pingo struct {
 	Count    int
 	Host     string
 	Interval time.Duration
-	IPAddr   *net.IPAddr
 	Packet   sub.Packet
+
+	// Channel
+	done chan interface{}
+	mtx  sync.Mutex
 }
 
-func (p *Pingo) Resolve(addr string) (*net.IPAddr, error) {
-	ipaddr, err := net.ResolveIPAddr("ip4", addr)
-	if err != nil {
-		fmt.Println("ip address not resolved")
-		return nil, err
-	}
-
-	return ipaddr, nil
-}
-
+// Validate interval
 func (p *Pingo) ValidInterval(interval string) bool {
 	r, _ := regexp.Compile(`^([1-9][0-9]*|0)`)
 	return r.MatchString(interval)
 }
 
-func NewPingo(f sub.Flag) Pingo {
-	var p Pingo
-	p.Count = f.Count
-	p.Host = f.Target
-
-	if !p.ValidInterval(f.Interval) {
-		fmt.Println(sub.ERROR_INCORRECT_VALUE_INTERVAL)
-		f.Interval = "1"
+// Run
+// Reference: https://pkg.go.dev/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/icmp#example-PacketConn-NonPrivilegedPing
+func (p *Pingo) Run() error {
+	lis, err := icmp.ListenPacket(p.Packet.Proto+":icmp", p.Packet.SrcAddr.String())
+	if err != nil {
+		log.Fatalf("ICMP ListenPacket Error: %v\n", err)
 	}
-	interval, err := time.ParseDuration(f.Interval + "s")
+	defer lis.Close()
+
+	// var msgType icmp.Type
+	// if p.Packet.Proto == "ipv4" {
+	// 	msgType = ipv4.ICMPTypeEcho
+	// } else if p.Packet.Proto == "ipv6" {
+	// 	msgType = ipv6.ICMPTypeEchoRequest
+	// }
+
+	c := 1
+	for range time.Tick(p.Interval) {
+		wm := icmp.Message{
+			Type: ipv4.ICMPTypeEcho,
+			Code: 0,
+			Body: &icmp.Echo{
+				ID:   os.Getpid() & 0xffff,
+				Seq:  c,
+				Data: []byte("PINGO"),
+			},
+		}
+		wb, err := wm.Marshal(nil)
+		if err != nil {
+			log.Fatalf("Marshal Error: %v\n", err)
+		}
+		if _, err := lis.WriteTo(wb, p.Packet.DestAddr); err != nil {
+			log.Fatalf("WriteTo Error: %v\n", err)
+		}
+
+		rb := make([]byte, 1500)
+		n, peer, err := lis.ReadFrom(rb)
+		if err != nil {
+			log.Fatalf("ReadFrom Error: %v\n", err)
+		}
+
+		protoNum := PROTO_NUM_ICMP_IPv4
+		if p.Packet.Proto == "ip6" {
+			protoNum = PROTO_NUM_ICMP_IPv6
+		}
+		rm, err := icmp.ParseMessage(protoNum, rb[:n])
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch rm.Type {
+		case ipv4.ICMPTypeEchoReply:
+			log.Printf("got reflection from %v\n", peer)
+		default:
+			log.Printf("got %+v; want echo reply\n", rm)
+		}
+
+		c++
+
+		if p.Count != 0 && c > p.Count {
+			break
+		}
+	}
+
+	return nil
+}
+
+func (p *Pingo) Stop() {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	open := true
+	select {
+	case _, open = <-p.done:
+	default:
+	}
+
+	if open {
+		close(p.done)
+	}
+}
+
+func NewPingo(flag sub.Flag, packet sub.Packet) *Pingo {
+	var p Pingo
+	p.Count = flag.Count
+	p.Host = flag.Target
+	p.Packet = packet
+	p.done = make(chan interface{})
+
+	if !p.ValidInterval(flag.Interval) {
+		fmt.Println(sub.ERROR_INCORRECT_VALUE_INTERVAL)
+		flag.Interval = "1"
+	}
+	interval, err := time.ParseDuration(flag.Interval + "s")
 	if err == nil {
 		p.Interval = interval
 	} else {
@@ -49,7 +135,7 @@ func NewPingo(f sub.Flag) Pingo {
 		p.Interval = 1 * time.Second
 	}
 
-	return p
+	return &p
 }
 
 func main() {
@@ -61,20 +147,22 @@ func main() {
 		return
 	}
 
-	p := NewPingo(f)
-	p.IPAddr, err = p.Resolve(f.Target)
+	packet := sub.NewPacket(f)
+	pingo := NewPingo(f, *packet)
+
+	fmt.Printf("pingo %s (%s)\n", pingo.Host, pingo.Packet.DestAddr.String())
+
+	// Listen for Ctrl+c signal
+	// cch := make(chan os.Signal, 1)
+	// signal.Notify(cch, os.Interrupt)
+	// go func() {
+	// 	for range cch {
+	// 		pingo.Stop()
+	// 	}
+	// }()
+
+	err = pingo.Run()
 	if err != nil {
-		return
-	}
-
-	fmt.Printf("pingo %s (%v)\n", p.Host, p.IPAddr)
-
-	c := 1
-	for range time.Tick(p.Interval) {
-		fmt.Printf("pingo %d times\n", c)
-		c++
-		if p.Count != 0 && c > p.Count {
-			break
-		}
+		fmt.Println("Error pingo")
 	}
 }
