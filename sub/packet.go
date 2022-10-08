@@ -5,46 +5,74 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"os"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
+)
+
+const (
+	PROTO_NUM_ICMP_IPv4 = 1
+	PROTO_NUM_ICMP_IPv6 = 58
 )
 
 type Packet struct {
+	ICMPType icmp.Type
 	ID       int
 	Proto    string
+	ProtoNum int
+	Seq      int
+	TTL      int
+
 	SrcAddr  *net.IPAddr
 	DestAddr *net.IPAddr
 }
 
 func NewPacket(f Flag) *Packet {
-	var p Packet
-
+	var icmpType icmp.Type
+	var proto string
+	var protoNum int
 	var srcIp string
 
 	if f.UseIPv6 {
-		p.Proto = "ip6"
+		icmpType = ipv6.ICMPTypeEchoRequest
+		proto = "ip6"
+		protoNum = PROTO_NUM_ICMP_IPv6
 		srcIp = "::"
 	} else {
-		p.Proto = "ip4"
+		icmpType = ipv4.ICMPTypeEcho
+		proto = "ip4"
+		protoNum = PROTO_NUM_ICMP_IPv4
 		srcIp = "0.0.0.0"
 	}
 
-	r := rand.New(rand.NewSource(getSeed()))
-	p.ID = r.Intn(math.MaxUint16)
-
-	srcAddr, err := net.ResolveIPAddr(p.Proto, srcIp)
+	srcAddr, err := net.ResolveIPAddr(proto, srcIp)
 	if err != nil {
 		fmt.Println("source address cannot be resolved")
+		os.Exit(0)
 	}
-	p.SrcAddr = srcAddr
 
-	destAddr, err := net.ResolveIPAddr(p.Proto, f.Target)
+	destAddr, err := net.ResolveIPAddr(proto, f.Target)
 	if err != nil {
 		fmt.Println("destination address cannot be resolved")
+		os.Exit(0)
 	}
-	p.DestAddr = destAddr
 
-	return &p
+	r := rand.New(rand.NewSource(getSeed()))
+
+	return &Packet{
+		ICMPType: icmpType,
+		ID:       r.Intn(math.MaxUint16),
+		Proto:    proto,
+		ProtoNum: protoNum,
+		Seq:      0,
+		TTL:      f.TTL,
+		SrcAddr:  srcAddr,
+		DestAddr: destAddr,
+	}
 }
 
 var seed int64 = time.Now().UnixNano()
