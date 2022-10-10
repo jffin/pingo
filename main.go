@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"regexp"
+	"os"
+	"os/signal"
 	"strconv"
 	"sync"
 	"time"
@@ -25,15 +26,9 @@ type Pingo struct {
 	mtx  sync.Mutex
 }
 
-// Validate interval
-func (p *Pingo) ValidInterval(interval string) bool {
-	r, _ := regexp.Compile(`^([1-9][0-9]*|0)`)
-	return r.MatchString(interval)
-}
-
 // Run
 // Reference: https://pkg.go.dev/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/icmp#example-PacketConn-NonPrivilegedPing
-func (p *Pingo) Run() error {
+func (p *Pingo) Run(statistics *sub.Statistics) error {
 	packetconn, err := icmp.ListenPacket(p.Packet.Proto+":"+strconv.Itoa(p.Packet.ProtoNum), p.Packet.SrcAddr.String())
 	if err != nil {
 		log.Fatalf("ICMP ListenPacket Error: %v\n", err)
@@ -78,16 +73,22 @@ func (p *Pingo) Run() error {
 			log.Fatal(err)
 		}
 
+		resultReceived := fmt.Sprintf(":-) from=%v::bytes=%d::id=0x%x::seq=%d::ttl=%d\n", peer, n, p.Packet.ID, p.Packet.Seq, p.Packet.TTL)
+
 		switch rm.Type {
 		case ipv4.ICMPTypeEchoReply:
-			fmt.Printf(":-) from=%v::bytes=%d::id=0x%x::seq=%d::ttl=%d\n", peer, n, p.Packet.ID, p.Packet.Seq, p.Packet.TTL)
+			fmt.Print(resultReceived)
+			statistics.Received++
 		case ipv6.ICMPTypeEchoReply:
-			fmt.Printf(":-) from=%v::bytes=%d::id=0x%x::seq=%d::ttl=%d\n", peer, n, p.Packet.ID, p.Packet.Seq, p.Packet.TTL)
+			fmt.Print(resultReceived)
+			statistics.Received++
 		default:
 			fmt.Printf(":-< faled %+v\n", rm)
+			statistics.Loss++
 		}
 
 		c++
+		statistics.Transmitted++
 
 		if p.Count != 0 && c > p.Count {
 			break
@@ -97,7 +98,7 @@ func (p *Pingo) Run() error {
 	return nil
 }
 
-func (p *Pingo) Stop() {
+func (p *Pingo) Stop(statistics *sub.Statistics) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -110,6 +111,11 @@ func (p *Pingo) Stop() {
 	if open {
 		close(p.done)
 	}
+
+	// display the result
+	statistics.ShowResult()
+
+	os.Exit(0)
 }
 
 func NewPingo(flag sub.Flag, packet sub.Packet) *Pingo {
@@ -119,10 +125,6 @@ func NewPingo(flag sub.Flag, packet sub.Packet) *Pingo {
 	p.Packet = &packet
 	p.done = make(chan interface{})
 
-	if !p.ValidInterval(flag.Interval) {
-		fmt.Println(sub.ERROR_INCORRECT_VALUE_INTERVAL)
-		flag.Interval = "1"
-	}
 	interval, err := time.ParseDuration(flag.Interval + "s")
 	if err == nil {
 		p.Interval = interval
@@ -148,17 +150,21 @@ func main() {
 
 	fmt.Printf("pingo %s (%s)\n", pingo.Host, pingo.Packet.DestAddr.String())
 
-	// Listen for Ctrl+c signal
-	// cch := make(chan os.Signal, 1)
-	// signal.Notify(cch, os.Interrupt)
-	// go func() {
-	// 	for range cch {
-	// 		pingo.Stop()
-	// 	}
-	// }()
+	statistics := sub.NewStatistics()
 
-	err = pingo.Run()
+	// Listen for Ctrl+c signal
+	cch := make(chan os.Signal, 1)
+	signal.Notify(cch, os.Interrupt)
+	go func() {
+		for range cch {
+			pingo.Stop(statistics)
+		}
+	}()
+
+	err = pingo.Run(statistics)
 	if err != nil {
 		fmt.Println("Error pingo")
 	}
+
+	statistics.ShowResult()
 }

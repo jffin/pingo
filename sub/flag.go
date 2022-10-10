@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 )
 
 type Flag struct {
@@ -24,21 +25,21 @@ var version = "0.1.0"
 var usage = fmt.Sprintf(`pingo v%s - ping in Go
 
 USAGE:
-	-c	ping <count> times (default: infinite)
-	-h	show usage
-	-i	interval per ping (default: 1)
-	-t	set TTL (time to live) of the packet (default: 64)
-	-v	verbose mode
-	-4	use IPv4 (default: true)
-	-6	use IPv6 (default: false)
+  -c <int>	ping <count> times (default: infinite)
+  -h		show usage
+  -i <int>	interval per ping (default: 1)
+  -t <int>	set TTL (time to live) of the packet (default: 64)
+  -v		verbose mode
+  -4		use IPv4 (default: true)
+  -6		use IPv6 (default: false)
 
-	help	show usage
-	version	show version
+  help		show usage
+  version	show version
 
 EXAMPLES:
-	pingo example.com
-	pingo -c 5 example.com
-	pingo -i 2 example.com
+  pingo example.com
+  pingo -c 5 example.com
+  pingo -i 2 example.com
 `, version)
 
 func (f *Flag) Parse() error {
@@ -63,7 +64,19 @@ func (f *Flag) Parse() error {
 		return errors.New(usage)
 	}
 
+	// validate interval
+	if !validateInterval(f.Interval) {
+		fmt.Println(ERROR_INCORRECT_VALUE_INTERVAL)
+		f.Interval = "1"
+	}
+
 	f.Target = flag.Arg(0)
 
 	return nil
+}
+
+// Validate interval
+func validateInterval(interval string) bool {
+	r, _ := regexp.Compile(`^([1-9][0-9]*|0)`)
+	return r.MatchString(interval)
 }
