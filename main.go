@@ -47,7 +47,7 @@ func (p *Pingo) Run(statistics *sub.Statistics) error {
 			ID: p.Packet.ID,
 			// ID: os.Getpid() & 0xffff,
 			Seq:  p.Packet.Seq,
-			Data: []byte("PINGO"),
+			Data: []byte(p.Packet.Data),
 		}
 		msg := &icmp.Message{
 			Type: p.Packet.ICMPType,
