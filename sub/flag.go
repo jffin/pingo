@@ -10,6 +10,7 @@ import (
 
 type Flag struct {
 	Count    int
+	Data     string
 	Help     bool
 	Interval string
 	Target   string
@@ -26,6 +27,7 @@ var usage = fmt.Sprintf(`pingo v%s - ping in Go
 
 USAGE:
   -c <int>	ping <count> times (default: infinite)
+  -d <str>	custom data string (default: "PINGO")
   -h		show usage
   -i <int>	interval per ping (default: 1)
   -t <int>	set TTL (time to live) of the packet (default: 64)
@@ -44,6 +46,7 @@ EXAMPLES:
 
 func (f *Flag) Parse() error {
 	flag.IntVar(&f.Count, "c", 0, "ping <count> times")
+	flag.StringVar(&f.Data, "d", "PINGO", "given data string")
 	flag.BoolVar(&f.Help, "h", false, "show usage")
 	flag.StringVar(&f.Interval, "i", "1", "interval (second) per ping")
 	flag.IntVar(&f.TTL, "t", 64, "set TTL (time to live) of the packet")

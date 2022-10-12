@@ -20,6 +20,7 @@ const (
 )
 
 type Packet struct {
+	Data     string
 	ICMPType icmp.Type
 	ID       int
 	Proto    string
@@ -64,6 +65,7 @@ func NewPacket(f Flag) *Packet {
 	r := rand.New(rand.NewSource(getSeed()))
 
 	return &Packet{
+		Data:     f.Data,
 		ICMPType: icmpType,
 		ID:       r.Intn(math.MaxUint16),
 		Proto:    proto,
