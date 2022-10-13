@@ -9,16 +9,17 @@ import (
 )
 
 type Flag struct {
-	Count    int
-	Data     string
-	Help     bool
-	Interval string
-	Target   string
-	TTL      int
-	UseIPv4  bool
-	UseIPv6  bool
-	Verbose  bool
-	Version  bool
+	Count        int
+	Data         string
+	Help         bool
+	Interval     string
+	Target       string
+	TTL          int
+	Unprivileged bool
+	UseIPv4      bool
+	UseIPv6      bool
+	Verbose      bool
+	Version      bool
 }
 
 var version = "0.1.0"
@@ -26,11 +27,12 @@ var version = "0.1.0"
 var usage = fmt.Sprintf(`pingo v%s - ping in Go
 
 USAGE:
-  -c <int>	ping <count> times (default: infinite)
+  -c <int>	ping <count> times (default: 0 -> infinite)
   -d <str>	custom data string (default: "PINGO")
   -h		show usage
   -i <int>	interval per ping (default: 1)
   -t <int>	set TTL (time to live) of the packet (default: 64)
+  -u		unprivileged (UDP) ping (default: false)
   -v		verbose mode
   -4		use IPv4 (default: true)
   -6		use IPv6 (default: false)
@@ -50,6 +52,7 @@ func (f *Flag) Parse() error {
 	flag.BoolVar(&f.Help, "h", false, "show usage")
 	flag.StringVar(&f.Interval, "i", "1", "interval (second) per ping")
 	flag.IntVar(&f.TTL, "t", 64, "set TTL (time to live) of the packet")
+	flag.BoolVar(&f.Unprivileged, "u", false, "unprivileged (UDP) ping")
 	flag.BoolVar(&f.Verbose, "v", false, "verbose mode")
 	flag.BoolVar(&f.UseIPv4, "4", true, "use IPv4")
 	flag.BoolVar(&f.UseIPv6, "6", false, "use IPv6")

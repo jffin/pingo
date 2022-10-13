@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
-	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,7 +30,7 @@ type Pingo struct {
 // Run
 // Reference: https://pkg.go.dev/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/icmp#example-PacketConn-NonPrivilegedPing
 func (p *Pingo) Run(statistics *sub.Statistics) error {
-	packetconn, err := icmp.ListenPacket(p.Packet.Proto+":"+strconv.Itoa(p.Packet.ProtoNum), p.Packet.SrcAddr.String())
+	packetconn, err := icmp.ListenPacket(p.Packet.Network, p.Packet.SrcAddr.String())
 	if err != nil {
 		log.Fatalf("ICMP ListenPacket Error: %v\n", err)
 	}
@@ -44,8 +45,7 @@ func (p *Pingo) Run(statistics *sub.Statistics) error {
 	for range time.Tick(p.Interval) {
 		p.Packet.Seq = c
 		body := &icmp.Echo{
-			ID: p.Packet.ID,
-			// ID: os.Getpid() & 0xffff,
+			ID:   p.Packet.ID,
 			Seq:  p.Packet.Seq,
 			Data: []byte(p.Packet.Data),
 		}
@@ -54,11 +54,19 @@ func (p *Pingo) Run(statistics *sub.Statistics) error {
 			Code: 0,
 			Body: body,
 		}
+
 		wb, err := msg.Marshal(nil)
 		if err != nil {
 			log.Fatalf("Marshal Error: %v\n", err)
 		}
-		if _, err := packetconn.WriteTo(wb, p.Packet.DestAddr); err != nil {
+
+		var dst net.Addr
+		if strings.Contains(p.Packet.Network, "udp") {
+			dst = &net.UDPAddr{IP: p.Packet.DestAddr.IP, Zone: p.Packet.DestAddr.Zone}
+		} else {
+			dst = p.Packet.DestAddr
+		}
+		if _, err := packetconn.WriteTo(wb, dst); err != nil {
 			log.Fatalf("WriteTo Error: %v\n", err)
 		}
 
@@ -70,17 +78,15 @@ func (p *Pingo) Run(statistics *sub.Statistics) error {
 
 		rm, err := icmp.ParseMessage(p.Packet.ProtoNum, rb[:n])
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("ParseMessage Erorr: %v", err)
 		}
-
-		resultReceived := fmt.Sprintf(":-) from=%v::bytes=%d::id=0x%x::seq=%d::ttl=%d\n", peer, n, p.Packet.ID, p.Packet.Seq, p.Packet.TTL)
 
 		switch rm.Type {
 		case ipv4.ICMPTypeEchoReply:
-			fmt.Print(resultReceived)
+			statistics.Result(peer, n, *p.Packet)
 			statistics.Received++
 		case ipv6.ICMPTypeEchoReply:
-			fmt.Print(resultReceived)
+			statistics.Result(peer, n, *p.Packet)
 			statistics.Received++
 		default:
 			fmt.Printf(":-< faled %+v\n", rm)
@@ -113,7 +119,7 @@ func (p *Pingo) Stop(statistics *sub.Statistics) {
 	}
 
 	// display the result
-	statistics.ShowResult()
+	statistics.FinalResult()
 
 	os.Exit(0)
 }
@@ -147,10 +153,9 @@ func main() {
 
 	packet := sub.NewPacket(f)
 	pingo := NewPingo(f, *packet)
+	statistics := sub.NewStatistics(packet)
 
-	fmt.Printf("pingo %s (%s)\n", pingo.Host, pingo.Packet.DestAddr.String())
-
-	statistics := sub.NewStatistics()
+	fmt.Printf("%s Ping %s (%s)\n", strings.ToUpper(statistics.Proto), pingo.Host, pingo.Packet.DestAddr.String())
 
 	// Listen for Ctrl+c signal
 	cch := make(chan os.Signal, 1)
@@ -166,5 +171,5 @@ func main() {
 		fmt.Println("Error pingo")
 	}
 
-	statistics.ShowResult()
+	statistics.FinalResult()
 }
