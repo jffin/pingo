@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -23,6 +25,7 @@ type Packet struct {
 	Data     string
 	ICMPType icmp.Type
 	ID       int
+	Network  string
 	Proto    string
 	ProtoNum int
 	Seq      int
@@ -33,52 +36,131 @@ type Packet struct {
 }
 
 func NewPacket(f Flag) *Packet {
-	var icmpType icmp.Type
-	var proto string
-	var protoNum int
-	var srcIp string
-
-	if f.UseIPv6 {
-		icmpType = ipv6.ICMPTypeEchoRequest
-		proto = "ip6"
-		protoNum = PROTO_NUM_ICMP_IPv6
-		srcIp = "::"
-	} else {
-		icmpType = ipv4.ICMPTypeEcho
-		proto = "ip4"
-		protoNum = PROTO_NUM_ICMP_IPv4
-		srcIp = "0.0.0.0"
-	}
-
-	srcAddr, err := net.ResolveIPAddr(proto, srcIp)
-	if err != nil {
-		fmt.Println("source address cannot be resolved")
-		os.Exit(0)
-	}
-
-	destAddr, err := net.ResolveIPAddr(proto, f.Target)
-	if err != nil {
-		fmt.Println("destination address cannot be resolved")
-		os.Exit(0)
-	}
-
-	r := rand.New(rand.NewSource(getSeed()))
+	proto := getProtocol(f.Unprivileged, f.UseIPv6)
+	protoNum := getProtocolNumber(f.UseIPv6)
+	srcIp := getSrcIP(f.UseIPv6)
 
 	return &Packet{
 		Data:     f.Data,
-		ICMPType: icmpType,
-		ID:       r.Intn(math.MaxUint16),
+		ICMPType: getICMPType(f.UseIPv6),
+		ID:       getID(),
+		Network:  getNetwork(proto, protoNum),
 		Proto:    proto,
 		ProtoNum: protoNum,
 		Seq:      0,
 		TTL:      f.TTL,
-		SrcAddr:  srcAddr,
-		DestAddr: destAddr,
+		SrcAddr:  resolve(proto, srcIp),
+		DestAddr: resolve(proto, f.Target),
 	}
 }
 
-var seed int64 = time.Now().UnixNano()
+// Get the ICMP type
+func getICMPType(useIpv6 bool) icmp.Type {
+	var icmpType icmp.Type
 
-func getSeed() int64 {
-	return atomic.AddInt64(&seed, 1)
+	if useIpv6 {
+		icmpType = ipv6.ICMPTypeEchoRequest
+	} else {
+		icmpType = ipv4.ICMPTypeEcho
+	}
+
+	return icmpType
+}
+
+// Get the packet ID
+func getID() int {
+	var seed int64 = time.Now().UnixNano()
+	newseed := atomic.AddInt64(&seed, 1)
+
+	r := rand.New(rand.NewSource(newseed))
+	return r.Intn(math.MaxUint16)
+}
+
+// Get the network
+func getNetwork(proto string, protoNum int) string {
+	var network string
+
+	if strings.Contains(proto, "udp") {
+		network = proto
+	} else {
+		network = proto + ":" + strconv.Itoa(protoNum)
+	}
+
+	return network
+}
+
+// Get the protocol name
+func getProtocol(unprivileged bool, useIPv6 bool) string {
+	var proto string
+
+	if unprivileged && useIPv6 {
+		proto = "udp6"
+	} else if unprivileged && !useIPv6 {
+		proto = "udp4"
+	} else if !unprivileged && useIPv6 {
+		proto = "ip6"
+	} else if !unprivileged && !useIPv6 {
+		proto = "ip4"
+	}
+
+	return proto
+}
+
+// Get the protocol number
+func getProtocolNumber(useIPv6 bool) int {
+	var protoNum int
+
+	if useIPv6 {
+		protoNum = PROTO_NUM_ICMP_IPv6
+	} else {
+		protoNum = PROTO_NUM_ICMP_IPv4
+	}
+
+	return protoNum
+}
+
+// Get the source IP
+func getSrcIP(useIPv6 bool) string {
+	var srcIp string
+
+	if useIPv6 {
+		srcIp = "::"
+	} else {
+		srcIp = "0.0.0.0"
+	}
+
+	return srcIp
+}
+
+// Resolve IP address
+func resolve(proto string, address string) *net.IPAddr {
+	// if strings.Contains(proto, "udp") {
+	// 	udpAddr, err := net.ResolveUDPAddr("ip", address)
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 		os.Exit(0)
+	// 	}
+	// 	return udpAddr
+	// } else {
+	// 	ipAddr, err := net.ResolveIPAddr(proto, address)
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 		os.Exit(0)
+	// 	}
+	// 	return ipAddr
+	// }
+
+	var network string
+	if strings.Contains(proto, "udp") {
+		network = strings.Replace(proto, "udp", "ip", 1)
+	} else {
+		network = proto
+	}
+
+	addr, err := net.ResolveIPAddr(network, address)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(0)
+	}
+	return addr
 }
