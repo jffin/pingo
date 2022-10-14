@@ -1,4 +1,4 @@
-## pingo
+# Pingo
 
 ping in Go.
 
@@ -29,7 +29,23 @@ EXAMPLES:
 
 <br />
 
-### Install & Build
+## Unprivileged Ping
+
+If you want to the unprivileged (UDP) ping in Linux, set the following sysctl command.
+
+```sh
+sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
+```
+
+Then run the pingo with the "-u" flag.
+
+```sh
+pingo -u example.com
+```
+
+<br />
+
+## Install & Build
 
 ```sh
 go get ; go build
