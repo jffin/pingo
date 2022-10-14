@@ -134,23 +134,8 @@ func getSrcIP(useIPv6 bool) string {
 
 // Resolve IP address
 func resolve(proto string, address string) *net.IPAddr {
-	// if strings.Contains(proto, "udp") {
-	// 	udpAddr, err := net.ResolveUDPAddr("ip", address)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		os.Exit(0)
-	// 	}
-	// 	return udpAddr
-	// } else {
-	// 	ipAddr, err := net.ResolveIPAddr(proto, address)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		os.Exit(0)
-	// 	}
-	// 	return ipAddr
-	// }
-
 	var network string
+
 	if strings.Contains(proto, "udp") {
 		network = strings.Replace(proto, "udp", "ip", 1)
 	} else {
@@ -162,5 +147,6 @@ func resolve(proto string, address string) *net.IPAddr {
 		fmt.Println(err)
 		os.Exit(0)
 	}
+
 	return addr
 }
