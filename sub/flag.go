@@ -22,7 +22,7 @@ type Flag struct {
 	Version      bool
 }
 
-var version = "0.1.0"
+var version = "0.1.2"
 
 var usage = fmt.Sprintf(`pingo v%s - ping in Go
 
