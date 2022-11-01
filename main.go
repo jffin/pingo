@@ -27,10 +27,11 @@ type Pingo struct {
 	mtx  sync.Mutex
 }
 
-// Run
+// Execute ping
 // Reference: https://pkg.go.dev/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/icmp#example-PacketConn-NonPrivilegedPing
 func (p *Pingo) Run(statistics *sub.Statistics) error {
-	packetconn, err := icmp.ListenPacket(p.Packet.Network, p.Packet.SrcAddr.String())
+	// packetconn, err := icmp.ListenPacket(p.Packet.Network, p.Packet.SrcAddr.String())
+	packetconn, err := sub.ListenPacket(p.Packet.Network, p.Packet.SrcAddr.String())
 	if err != nil {
 		log.Fatalf("ICMP ListenPacket Error: %v\n", err)
 	}
@@ -135,7 +136,7 @@ func NewPingo(flag sub.Flag, packet sub.Packet) *Pingo {
 	if err == nil {
 		p.Interval = interval
 	} else {
-		fmt.Println(sub.ERROR_INCORRECT_VALUE_INTERVAL)
+		fmt.Println(sub.ErrIncorrectValueInterval)
 		p.Interval = 1 * time.Second
 	}
 

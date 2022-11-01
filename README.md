@@ -6,25 +6,24 @@ ping in Go.
 
 ## Usage
 
+```sh
+pingo example.com
+
+# sends pingo 5 times
+pingo -c 5 example.com
+
+# 2 seconds per pingo
+pingo -i 2
 ```
-USAGE:
-  -c <int>      ping <count> times (default: 0 -> infinite)
-  -d <str>      custom data string (default: "PINGO")
-  -h            show usage
-  -i <int>      interval per ping (default: 1)
-  -t <int>      set TTL (time to live) of the packet (default: 64)
-  -u            unprivileged (UDP) ping (default: false)
-  -v            verbose mode
-  -4            use IPv4 (default: true)
-  -6            use IPv6 (default: false)
 
-  help          show usage
-  version       show version
+<br />
 
-EXAMPLES:
-  pingo example.com
-  pingo -c 5 example.com
-  pingo -i 2 example.com
+## Capabilities
+
+If you feel annoying to 'sudo' every time you run, it encourages to set the capabilities as follow.
+
+```sh
+setcap cap_net_raw+ep ./pingo
 ```
 
 <br />
