@@ -35,6 +35,7 @@ type Packet struct {
 	DestAddr *net.IPAddr
 }
 
+// Create a new Packet
 func NewPacket(f Flag) *Packet {
 	proto := getProtocol(f.Unprivileged, f.UseIPv6)
 	protoNum := getProtocolNumber(f.UseIPv6)
