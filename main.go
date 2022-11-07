@@ -125,11 +125,11 @@ func (p *Pingo) Stop(statistics *sub.Statistics) {
 	os.Exit(0)
 }
 
-func NewPingo(flag sub.Flag, packet sub.Packet) *Pingo {
+func NewPingo(flag *sub.Flag, packet *sub.Packet) *Pingo {
 	var p Pingo
 	p.Count = flag.Count
 	p.Host = flag.Target
-	p.Packet = &packet
+	p.Packet = packet
 	p.done = make(chan interface{})
 
 	interval, err := time.ParseDuration(flag.Interval + "s")
@@ -152,11 +152,11 @@ func main() {
 		return
 	}
 
-	packet := sub.NewPacket(f)
-	pingo := NewPingo(f, *packet)
-	statistics := sub.NewStatistics(packet)
+	packet := sub.NewPacket(&f)
+	pingo := NewPingo(&f, packet)
+	statistics := sub.NewStatistics(&f, packet)
 
-	fmt.Printf("%s Ping %s (%s)\n", strings.ToUpper(statistics.Proto), pingo.Host, pingo.Packet.DestAddr.String())
+	statistics.Start(pingo.Host, pingo.Packet.DestAddr.String())
 
 	// Listen for Ctrl+c signal
 	cch := make(chan os.Signal, 1)

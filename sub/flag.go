@@ -13,6 +13,7 @@ type Flag struct {
 	Exploit      string
 	Help         bool
 	Interval     string
+	NoColor      bool
 	Target       string
 	TTL          int
 	Unprivileged bool
@@ -40,6 +41,7 @@ EXAMPLES:
 
 // Parse flags
 func (f *Flag) Parse() error {
+	flag.BoolVar(&f.NoColor, "no-color", false, "disable coloring of outputs")
 	flag.IntVar(&f.Count, "c", 0, "ping <count> times")
 	flag.StringVar(&f.Data, "d", "PINGO", "custom data string")
 	flag.BoolVar(&f.Help, "h", false, "print usage")
