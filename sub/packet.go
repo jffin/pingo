@@ -36,7 +36,7 @@ type Packet struct {
 }
 
 // Create a new Packet
-func NewPacket(f Flag) *Packet {
+func NewPacket(f *Flag) *Packet {
 	proto := getProtocol(f.Unprivileged, f.UseIPv6)
 	protoNum := getProtocolNumber(f.UseIPv6)
 	srcIp := getSrcIP(f.UseIPv6)
@@ -91,7 +91,7 @@ func getNetwork(proto string, protoNum int) string {
 }
 
 // Get the protocol name
-func getProtocol(unprivileged bool, useIPv6 bool) string {
+func getProtocol(unprivileged, useIPv6 bool) string {
 	var proto string
 
 	if unprivileged && useIPv6 {
@@ -134,7 +134,7 @@ func getSrcIP(useIPv6 bool) string {
 }
 
 // Resolve IP address
-func resolve(proto string, address string) *net.IPAddr {
+func resolve(proto, address string) *net.IPAddr {
 	var network string
 
 	if strings.Contains(proto, "udp") {

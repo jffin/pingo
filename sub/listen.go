@@ -34,6 +34,7 @@ func ListenPacket(network, address string) (*PacketConn, error) {
 			proto = IANA_ProtocolIPv6ICMP
 		}
 	}
+
 	var cerr error
 	var c net.PacketConn
 	switch family {
@@ -66,6 +67,7 @@ func ListenPacket(network, address string) (*PacketConn, error) {
 	if cerr != nil {
 		return nil, cerr
 	}
+
 	switch proto {
 	case IANA_ProtocolICMP:
 		return &PacketConn{c: c, p4: ipv4.NewPacketConn(c)}, nil
@@ -76,7 +78,7 @@ func ListenPacket(network, address string) (*PacketConn, error) {
 	}
 }
 
-// coming soon.
+// Get a socket address.
 func sockaddr(family int, address string) (syscall.Sockaddr, error) {
 	switch family {
 	case syscall.AF_INET:
@@ -130,7 +132,7 @@ func zoneToUint32(zone string) uint32 {
 	return uint32(n)
 }
 
-// coming soon.
+// Get the number of the character given the second argument.
 func last(s string, b byte) int {
 	i := len(s)
 	for i--; i >= 0; i-- {
