@@ -18,6 +18,30 @@ pingo -i 2
 
 <br />
 
+## Installation
+
+- **go install**
+
+    If you have go and want to get the Pingo for the latest version, run 'go install'.
+
+    ```sh
+    go install github.com/hideckies/pingo@latest
+    ```
+
+- **Binary**
+
+    Download a prebuilt binary from [release page](https://github.com/hideckies/pingo/releases).
+
+- **git clone**
+
+    ```sh
+    git clone https://github.com/hideckies/pingo.git
+    cd pingo
+    go get ; go build
+    ```
+
+<br />
+
 ## Capabilities
 
 If you feel annoying to 'sudo' every time you run, it encourages to set the capabilities as follow.
@@ -40,12 +64,4 @@ Then run the pingo with the "-u" flag.
 
 ```sh
 pingo -u example.com
-```
-
-<br />
-
-## Install & Build
-
-```sh
-go get ; go build
 ```
